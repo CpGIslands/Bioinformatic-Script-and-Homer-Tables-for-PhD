@@ -1,0 +1,369 @@
+		**RNA-Seq Processing Performed by Mr John Cole** (See Chapter 3, Section 3.4.2 and Chapter 5, 5.2.4)
+
+RStudio (2022.02.2)
+
+DESeq2 (Version 1.30.0)
+
+RNA_counts=read.table("C:/Users/kayle/Documents/R_Script_RNA/SEQ_featurecounts.txt", header=TRUE,row.names=1,sep="\t")
+Sample_Sheet=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Sample_Sheet.txt", header=TRUE,row.names=1,sep="\t")
+
+# Remove Unused Columns as well as Chromosome, Start, Stop and Length Columns
+keepers=c(7,10,11,12,13,16,19,21,22,25,28,31,34,39)
+RNA_counts=RNA_counts[,keepers]
+
+# Filter reads to remove non-expressed genes
+nrow(RNA_counts)
+counts=subset(RNA_counts,apply(RNA_counts,1,mean)>=1)
+
+## Save Sig Table 
+write.table(RNA_counts,file="C:/Users/kayle/Documents/R_Script_RNA/RNA_counts.csv",sep="\t")
+
+# Make count table into a matrix
+counts=as.matrix(counts)
+
+# Prepare sample information
+sample_group=factor(Sample_Sheet$condition)
+
+# Build new data frame using the information just produced 
+sample_data=data.frame(row.names=colnames(counts),sample_group)
+
+install.packages("DESeq2")
+library(DESeq2)
+
+# Run DeSeq2 
+library(DESeq2)
+dds=DESeqDataSetFromMatrix(countData=counts, colData=sample_data, design= ~sample_group)
+dds=DESeq(dds)
+
+# Extract Results from dds
+RNA_norm_counts=as.data.frame(counts(dds,normalized=TRUE))
+
+# Round the counts so its easier to visualise
+RNA_norm_counts=round(RNA_norm_counts,2)
+
+# Save normalised counts table 
+RNA_norm_counts_out=data.frame(row.names(RNA_norm_counts))
+names(RNA_norm_counts_out)= "id"
+RNA_norm_counts_out=cbind(RNA_norm_counts_out, RNA_norm_counts)
+write.table(RNA_norm_counts_out, file="C:/Users/kayle/Documents/R_Script_RNA/RNA_Norm_Counts.csv", row.names=FALSE, sep="\t", quote=FALSE)
+
+# Extract Differential Information from DeSeq2
+de_RNA=results(dds,c("sample_group", "Tendinopathy", "Normal"))
+de_RNA=as.data.frame(de_RNA)
+
+# Remove unwanted columns and add row names
+de_RNA_out=as.data.frame(de_RNA)
+de_RNA_out=de_RNA_out[order(de_RNA_out$padj),]
+de_RNA_out$id=row.names(de_RNA_out)
+de_RNA_out=de_RNA_out[,c(7,2,5,6)]
+colnames(de_RNA_out) = c("id", "log2FoldChange", "pvalue", "padj")
+write.table(de_RNA_out, file="C:/Users/kayle/Documents/R_Script_RNA/de_RNA_control_vs_disease.csv", row.names=FALSE, sep="\t", quote=FALSE)
+
+RNA Script for Plots with Theme (ggplot (3.3.3), reshape (1.4.4), amap (0.8.18))
+theme_SL2 <- function () {
+  theme_bw() %+replace%
+    theme(
+      panel.grid = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_rect(colour = "black", fill=NA, size=1),
+      plot.background = element_blank(),
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA),
+      plot.title = element_text(size=16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      title = element_text(size = 16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      axis.text.y = element_text(size = 14, margin = margin(r = 5),hjust=1,vjust=0.5),
+      axis.text.x = element_text(size = 14, margin = margin(t = 5),hjust=0.5,vjust=1),
+      axis.title.y = element_text(size = 16, margin = margin(r = 10),angle = 90,hjust=0.5,vjust=0.5),
+      axis.title.x = element_text(size = 16, margin = margin(t = 10),hjust=0.5,vjust=1),
+      legend.text=element_text(size=14),
+      legend.title=element_blank(),
+      legend.key.size=unit(2.5,"line"),
+      plot.margin=unit(c(0.4,0.4,0.4,0.4), "cm")
+    )
+}
+
+# Load files 
+RNAhealthy_vs_disease=read.table("C:/Users/kayle/Documents/R_Script_RNA/de_RNA_control_vs_disease.csv", header=FALSE, sep="\t")
+RNA_Counts=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_counts.csv", header=FALSE, sep = "\t")
+RNA_Norm_Counts=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Norm_Counts.csv", header=FALSE, sep = "\t")                        
+RNAsample_sheet=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Sample_Sheet.txt", header=FALSE,  sep = "\t")
+
+# Reload files with column headers and row names 
+RNAhealthy_vs_disease=read.table("C:/Users/kayle/Documents/R_Script_RNA/de_RNA_control_vs_disease.csv", header=TRUE, row.names=1, sep="\t")
+RNA_Counts=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_counts.csv", header=TRUE, row.names=1, sep="\t")
+RNAsample_sheet=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Sample_Sheet.txt", header=TRUE, row.names=1,  sep="\t")
+RNA_Norm_Counts=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Norm_Counts.csv", header=TRUE, row.names=1, sep="\t")
+Master_Table_Genes=read.table("C:/Users/kayle/Documents/R_Script_RNA/Gene_List_1.txt", header=TRUE, row.names=2, sep="\t")
+
+# Change colnames of RNA_counts tables (makes it easier to read)
+
+colnames(RNA_Counts) = c("10S", "13S", "14S", "15S", "16S", "1T", "2T", "3S", "3T", "4T", "5T", "6T", "7T",  "9S")
+colnames(RNA_Norm_Counts) = c("10S", "13S", "14S", "15S", "16S", "1T", "2T", "3S", "3T", "4T", "5T", "6T", "7T",  "9S")
+
+# Make a new column in Peak Intensity (same as EM table)for mean expression
+rowMeans(RNA_Norm_Counts)
+RNA_Norm_Counts$averages=rowMeans(RNA_Norm_Counts)
+
+# Make scaled expression matrix
+RNA_scaled=na.omit(data.frame(t(scale(t(RNA_Norm_Counts)))))
+
+# Add columns for -log10p to the healthy v disease
+RNAhealthy_vs_disease$mlog10p=-log(RNAhealthy_vs_disease$pvalue,4)
+
+# Add columns flagging signficance to the healthy v disease
+RNAhealthy_vs_disease$sig=as.factor(RNAhealthy_vs_disease$padj < 0.05 & abs(RNAhealthy_vs_disease$log2FoldChange) > 1.0)
+
+# Make Master Table
+master_table=merge(RNAhealthy_vs_disease, RNA_Norm_Counts, by=0)
+row.names(master_table)=master_table$Row.names
+keepers=c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21)
+master_table=master_table[,keepers]
+
+
+master_table=merge(master_table, Master_Table_Genes, by=0)
+row.names(master_table)=master_table$Row.names
+keepers=c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22)
+master_table=master_table[,keepers]
+
+
+# Re-orders columns
+RNA_Counts <- RNA_Counts[,c (1,2,3,4,5,8,14,6,7,9,10,11,12,13)]
+RNA_Norm_Counts <- RNA_Norm_Counts[,c(1,2,3,4,5,8,14,6,7,9,10,11,12,13)]
+
+RNA_Norm_Counts=merge(RNA_Norm_Counts, Master_Table_Genes, by=0)
+row.names(RNA_Norm_Counts)=RNA_Norm_Counts$Row.names
+keepers=c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+RNA_Norm_Counts=RNA_Norm_Counts[,keepers]
+
+#Make a list of significant genes using subset
+SigGenes=subset(master_table, padj <0.05 & abs(log2FoldChange) > 1)
+
+# vector of significant gene names (use ensembl IDs)
+Sig=row.names(SigGenes)
+
+# Make expression matrices of significant genes only
+RNA_sig=RNA_Norm_Counts[Sig,]
+
+# Change row.names of RNA_sig table to Gene Names
+row.names(RNA_sig)=RNA_sig$Gene.name
+
+# Make table using scaled table
+RNA_scaled_sig=RNA_scaled[Sig,]
+RNA_scaled_sig=merge(RNA_scaled_sig, Master_Table_Genes, by=0)
+row.names(RNA_scaled_sig)=RNA_scaled_sig$Gene.name
+keepers=c(1,3,4,5,6,7,8,9,10,11,12,13,14)
+RNA_sig=RNA_sig[,keepers]
+keepers=c(2,3,4,5,6,7,8,9,10,11,12,13,14,15)
+RNA_scaled_sig=RNA_scaled_sig[,keepers]
+
+# Change column names
+colnames(RNA_scaled_sig) = c("10S", "13S", "14S", "15S", "16S", "1T", "2T", "3S", "3T", "4T", "5T", "6T", "7T",  "9S")
+
+# Reorder column names
+RNA_scaled_sig <- RNA_scaled_sig[,c(1,2,3,4,5,8,14,6,7,9,10,11,12,13)]
+
+## Save Sig Table
+write.table(RNA_sig,file="C:/Users/kayle/Documents/R_Script_RNA/RNA_sig.csv",sep="\t")
+
+# Change Row Names
+row.names(SigGenes)=SigGenes$Gene.name
+
+#GGplots
+install.packages("ggplot2")
+install.packages("vctrs")
+library(ggplot2)
+
+# Make a volcano plot healthy v disease
+ggp=ggplot(master_table, aes(x=log2FoldChange,y=mlog10p))
+ggp
+ggp=ggplot(master_table, aes(x=log2FoldChange,y=mlog10p)) + geom_point()+labs(title="Volcano Plot", x="log2fold", y="-log10 p-value")
+ggp
+
+# change dots and add theme
+ggp=ggplot(master_table, aes(x=log2FoldChange,y=mlog10p)) + geom_point(size=3)+labs(title="Volcano Plot for RNA-Sequencing Data", x="log2fold", y="-log10 p-value") + theme_classic()
+ggp
+
+# colour dots by significance
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot of RNA-Sequencing Data", x="log2fold change", y="-log10 p-value")
+ggp
+
+#colour dots with different colours
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot of RNA-Sequencing Data", x="log2fold change", y="-log10 p-value") +scale_color_manual(values=c("red","black")) 
+ggp
+
+levels(master_table$sig)
+master_table$sig=factor(master_table$sig,levels=c(TRUE,FALSE))
+ggp
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for RNA-Sequencing Data", x="log2fold change", y="-log10 p-value") +scale_color_manual(values=c("blue","black"))
+ggp
+
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for Loci Identified from RNA-Sequencing Data", x="Log2Fold Change", y="-log10 p-value") +scale_color_manual(values=c("red","black"))+theme_classic() +theme_SL2()
+ggp
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/volcanoRNA_new.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+## Label dots with significant genes only
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for Genes Identified from RNA-Sequencing Data", x="Log2Fold Change", y="-log10 p-value") +scale_color_manual(values=c("red","black")) +geom_text(data=SigGenes,aes(label=row.names(SigGenes))) +theme_classic() +theme_SL2()
+ggp
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/volcanoRNA_with_loci_2.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+library(ggrepel)
+
+# Use ggrepel to separate the labels (needs some fine tuning)
+ggp=ggplot(na.omit(master_table), aes(x=log2FoldChange,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for Genes Identified from RNA-Sequencing Data", x="Log2Fold Change", y="-log10 p-value") +scale_color_manual(values=c("red","black")) +geom_text_repel(data=SigGenes,aes(label=row.names(SigGenes))) +theme_SL2() 
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/volcanoRNA_ggrepel.pdf", height=15, width=15)
+print(ggp)
+dev.off()
+
+# Make MA Plot 
+ggp=ggplot(na.omit(master_table), aes(x=log10(averages), y=log2FoldChange, colour=sig))+geom_point(size=1.5)+labs(title="MA Plot for Loci Identified from RNA-Sequencing Data", x="Log10 Mean Expression", y="Log2Fold Change") +theme_SL2() +scale_color_manual(values=c("red","black"))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/MA_RNA.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+# PCA Plot 
+#Load the sample sheet
+SS=read.table("C:/Users/kayle/Documents/R_Script_RNA/RNA_Sample_Sheet.txt", header=TRUE,sep="\t")
+keepers=c(1,3)
+SS=SS[,keepers]
+row.names(SS)=SS$sample
+condition=SS$condition
+
+EM.nm = as.matrix(sapply(RNA_scaled_sig, as.numeric))
+pca = prcomp(t(EM.nm))
+pca_coordinates=data.frame(pca$x)
+
+
+ggp=ggplot(pca_coordinates,aes(x=PC1, y=PC2, colour=condition)) +geom_point(size=4)+labs(title="PCA plot for RNA-Sequencing Data") +theme_SL2()
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/ControlVDisease-PCA_Plot_RNA_scaled_new.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+# Heatmaps
+
+hm.matrix=as.matrix(RNA_scaled_sig)
+library(reshape2)
+hm.matrix=melt(hm.matrix)
+ggp=ggplot(hm.matrix, aes(x=Var2, y=Var1, fill=value))+geom_tile()
+ggp
+
+# Use scaled values
+## Already used scaled values
+
+# Fix the colours
+colours=c("blue", "yellow", "red")
+palette=colorRampPalette(colours)(100)
+ggp=ggplot(hm.matrix, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+# Cluster the expression matrix
+library(amap)
+
+
+## get the distances between the genes
+hm.matrix=as.matrix(RNA_scaled_sig)
+y.dist=Dist(hm.matrix,method="spearman")
+
+# perform clustering using distances this builds the dendrogram
+y.cluster=hclust(y.dist,method="average")
+
+# extract the dendrogram
+y.dd=as.dendrogram(y.cluster)
+
+# untangle the dendrogram (re-order)
+y.dd.reorder=reorder(y.dd,0,FUN="average")
+
+# new gene order (as vector of row indexes)
+y.order=order.dendrogram(y.dd.reorder)
+
+# reorder heatmap matrix to have new, clustered gene order
+hm.matrix.clustered=hm.matrix[y.order,]
+
+# now proceed with melt and plot as before
+hm.matrix.clustered=melt(hm.matrix.clustered)
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+# now x distance
+x.dist=Dist(t(hm.matrix),method="spearman")
+
+# x clusters
+x.cluster=hclust(x.dist, method="average")
+
+# this pulls out the dendrogram
+x.dd = as.dendrogram(x.cluster)
+
+# this untangles the dendrogram
+x.dd.reorder=reorder(x.dd,0,FUN="average")
+
+# new gene order(as vector of row indexes)
+x.order=order.dendrogram(x.dd.reorder)
+
+#reorder heatmap matrix to have new clustered gene order
+hm.matrix.clustered=hm.matrix[y.order,]
+hm.matrix.clustered=melt(hm.matrix.clustered)
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+#tidy up plots
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("Significant Genes") +xlab("Samples")
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/heatmap_RNA.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("212 Significant Genes Identified Through Analysis") +xlab("Sample Condition") +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.ticks=element_blank())
+ggp
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("212 Significant Genes Identified Through Analysis") +labs(title=" 212 Significant Loci identified Through RNA-Sequencing Data Analysis")+theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))+theme_SL2()
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/heatmap_RNA_with_theme.pdf", height=40, width=40)
+print(ggp)
+dev.off()
+
+### To remove ALL labels from heatmap (apart from x, y titles and title)
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("212 Significant Loci Identified Through Analysis") +xlab("Sample Condition") +labs(title="HeatMap for 212 Significant Loci identified Through RNA-Sequencing Data Analysis") +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.text.x=element_blank(), axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/heatmap_RNA_titles_only.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+### Remove ALL labels from the heatmap
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.text.x=element_blank(), axis.title=element_blank(), axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_RNA/heatmap_RNA_NO_labels.pdf", height=10, width=10)
+print (ggp)
+dev.off()
+
+GoEnrich on RNA-Seq Data
+
+library(clusterProfiler)
+library(pathview)
+library(org.Hs.eg.db)
+library(ggplot2)
+install.packages("Rcpp")
+library(Rcpp)
+update.packages("Rcpp")
+
+
+keepers=c(1)
+signature_1=RNA_Sig[,keepers]
+signature_entrez=bitr(signature_1, fromType="ENSEMBL", toType=c("ENTREZID"), OrgDb=org.Hs.eg.db)
+go_enrich=enrichGO(gene=signature_entrez$ENTREZID,OrgDb=org.Hs.eg.db,readable=T,ont="BP",pvalueCutoff=0.10,qvalueCutoff=0.10)
+barplot(go_enrich,showCategory=10)
+dotplot(go_enrich, showCategory=10)
+emapplot(go_enrich)
+goplot(go_enrich,showCategory=10)
+ggp = cnetplot(go_enrich,categorySize="pvalue", foldChange=signature_1)
+ggp
+
+

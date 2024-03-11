@@ -1,0 +1,554 @@
+                           GALAXY (Heighliner Server)
+
+
+FastQC (0.11.8)
+
+- Contaminant list (empty)
+- Adapter list (empty)
+- Submodule and Limit Specifing File (empty)
+- Disable grouping of bases for reads >50bp (False)
+- Lower limit on the length of the sequence to be shown in the report (Not available)
+- Length of Kmer to look for (7).
+
+Trimmomatic (0.36)
+
+- Single-end or paired-end reads? (se)
+- Input FastQ File (from original files)
+- Perform inital illuminaclip step? (No)
+- Select Trimmomatic Operation to perform (SLIDINGWINDOW)
+- Number of bases to average across (4)
+- Average Quality Required (20)
+
+Bowtie2 (2.3.4) (SamTools 1.8)
+
+- Single or Paired Library? (Single)
+- FASTA/Q File (Trimmomatic File)
+- Write unaligned reads (in fastq format) to separate files? (False)
+- Write aligned reads (in fastq format) to separate files? (False)
+- Will you select a reference genome from your history or use a built-in index? (Indexed) 
+- Select Reference Genome (hg38)
+- Set read groups information? (do_not_set)
+- Select analysis mode (Simple)
+- Do you want to use presets? (No, just use defaults)
+- Do you want to tweak SAM/BAM Options? (No)
+- Save Bowtie2 mapping statistics to the history? (False)
+
+MACS2 (2.1.1.20160309) (R-Base 3.4)
+
+- Are you pooling treatment files? (No)
+- ChIP-Seq Treatment File (From Bowtie2)
+- Do you have a control file? (Yes)
+- Are you pooling control files? (No)
+- ChIP-Seq Control File (Input from Bowtie2)
+- Format of input files (single-end BAM)
+- Effective Genome Size (2700000000)
+- Build Model (create_model)
+- Set Lower mfold bound (5)
+- Set upper mfold bound (50)
+- Band width for picking regions to compute fragment size (300)
+- Peak detection based on (qvalue)
+- Minimum FDR (q-value) cutoff for peak detection (0.05)
+- Additional Outputs (peaks as tabular file, peak summits scores in bedgraph files, summary page, plot in PDF)
+ADVANCED OPTIONS
+- When set, scale the small sample up to the bigger sample (False)
+- Use fixed background lambda as local lambda for every peak region (False)
+- When set, use a custom scaling ration of ChIP/Control (e.g. calcuated using NCIS) for linear scaling (Not Available)
+- The small nearby region in basepairs to calculate dynamic lambda (Not Available)
+- The large nearby region in basepairs to calculate dynamic lambda (Not Available)
+- Composite broad regions (nobroad)
+- Use a more sophisticated signal processing approach to find subpeak summits in each enriched peak region (False)
+- How many duplicate tags at the exact same location are allowed? (1)
+
+			   VM Ubuntu 20.04.2 LTS
+
+BedTools (v2.27.1) -> Count and Merge
+
+# merge the peak files
+cat /home/kayleigh/data_analysis/peaks/H3K27me3/145_and_148.txt /home/kayleigh/data_analysis/peaks/H3K27me3/149_and_152.txt /home/kayleigh/data_analysis/peaks/H3K27me3/153_and_156.txt /home/kayleigh/data_analysis/peaks/H3K27me3/157_and_160.txt /home/kayleigh/data_analysis/peaks/H3K27me3/161_and_164.txt /home/kayleigh/data_analysis/peaks/H3K27me3/165_and_168.txt /home/kayleigh/data_analysis/peaks/H3K27me3/169_and_172.txt /home/kayleigh/data_analysis/peaks/H3K27me3/173_and_176.txt /home/kayleigh/data_analysis/peaks/H3K27me3/177_and_180.txt > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.csv
+
+# view the merged file
+head /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.csv 
+
+# filter based on column 9 (****WHAT IS THAT - USE MACS MANUAL ****), value above 8.
+cat /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.csv | awk '{FS="\t";OFS="\t"}{if($8> 9){print}}' > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.filtered.csv
+
+# convert to bed
+cat /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.filtered.csv | awk '{FS="\t";OFS="\t"}{print $1, $2, $3}' > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.bed
+
+# check that it is bed
+head /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.bed
+
+# sort by locus
+sort -k1,1 -k2,2n /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.bed > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.bed
+
+# check that it is sorted
+tail /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.bed
+
+# remove extra headers
+sed '/olumn/d' /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.bed > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.trimmed.bed 
+
+# check that it has worked
+tail /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.trimmed.bed 
+
+# merge
+bedtools merge -i /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.trimmed.bed  > /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.merged.bed
+
+# count the peaks
+wc -l /home/kayleigh/data_analysis/peaks/H3K27me3/combined_peaks_K27.sorted.merged.bed
+
+
+BedTools (v2.27.1) -> Coverage
+
+cd /media/john/storage/analysis/Moeed_ChIP_2020/
+
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_control_176.bam -sorted > counts/K4_control_176.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_control_208.bam -sorted > counts/K4_control_208.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_control_1399.bam -sorted > counts/K4_control_1399.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_control_1557.bam -sorted > counts/K4_control_1557.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_disease_1419.bam -sorted > counts/K4_disease_1419.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_disease_1491.bam -sorted > counts/K4_disease_1491.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_disease_1558.bam -sorted > counts/K4_disease_1558.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_disease_1594.bam -sorted > counts/K4_disease_1594.txt
+coverageBed -a peak_bed_files/K4_combined_peaks.broadPeak.bed -b filtered_alignments/K4_disease_9648.bam -sorted > counts/K4_disease_9648.txt
+
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_control_176.bam -sorted > counts/K20_control_176.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_control_208.bam -sorted > counts/K20_control_208.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_control_1399.bam -sorted > counts/K20_control_1399.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_control_1557.bam -sorted > counts/K20_control_1557.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_disease_1419.bam -sorted > counts/K20_disease_1419.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_disease_1491.bam -sorted > counts/K20_disease_1491.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_disease_1558.bam -sorted > counts/K20_disease_1558.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_disease_1594.bam -sorted > counts/K20_disease_1594.txt
+coverageBed -a peak_bed_files/K20_combined_peaks.broadPeak.bed -b filtered_alignments/K20_disease_9648.bam -sorted > counts/K20_disease_9648.txt
+
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_control_176.bam -sorted > counts/K27_control_176.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_control_208.bam -sorted > counts/K27_control_208.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_control_1399.bam -sorted > counts/K27_control_1399.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_control_1557.bam -sorted > counts/K27_control_1557.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_disease_1419.bam -sorted > counts/K27_disease_1419.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_disease_1491.bam -sorted > counts/K27_disease_1491.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_disease_1558.bam -sorted > counts/K27_disease_1558.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_disease_1594.bam -sorted > counts/K27_disease_1594.txt
+coverageBed -a peak_bed_files/K27_combined_peaks.broadPeak.bed -b filtered_alignments/K27_disease_9648.bam -sorted > counts/K27_disease_9648.txt
+
+
+tail /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_control_176.txt
+
+--output /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4.csv
+--joinFeild 0
+--joinFeild 1
+--joinFeild 2
+--printFeild 3
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_control_176.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_control_208.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_control_1399.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_control_1557.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_disease_1419.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_disease_1491.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_disease_1558.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_disease_1594.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K4_disease_9648.txt
+
+--output /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20.csv
+--joinFeild 0
+--joinFeild 1
+--joinFeild 2
+--printFeild 3
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_control_176.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_control_208.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_control_1399.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_control_1557.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_disease_1419.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_disease_1491.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_disease_1558.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_disease_1594.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K20_disease_9648.txt
+
+--output /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27.csv
+--joinFeild 0
+--joinFeild 1
+--joinFeild 2
+--printFeild 3
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_control_176.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_control_208.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_control_1399.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_control_1557.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_disease_1419.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_disease_1491.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_disease_1558.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_disease_1594.txt
+--input /media/john/storage/analysis/Moeed_ChIP_2020/counts/K27_disease_9648.txt
+
+# Load Data Using Header=TRUE (This gives the column names as the column names on the data frame - tables are from BedTools Coverage)
+K4=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4.csv", header=TRUE,sep="\t")
+K20=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K20.csv", header=TRUE,sep="\t")
+K27=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K27.csv", header=TRUE,sep="\t")
+
+# Remove Unused Columns 
+keepers=c(1,2,3)
+K4_peaks=K4[,keepers]
+K20_peaks=K20[,keepers]
+K27_peaks=K27[,keepers]
+
+# # Load Sample Sheets
+K4_Sample_Sheet=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4_Sample_Sheet.txt", header=TRUE,sep="\t")
+K20_Sample_Sheet=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K20_Sample_Sheet.txt", header=TRUE, sep="\t")
+K27_Sample_Sheet=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K27_Sample_Sheet.txt", header=TRUE, sep="\t")
+
+** Below Code was repeated for K27 and K20
+
+# Join columns and then remove them 
+row.names(K4)=paste(K4$chromosome, K4$start, K4$stop, K4$length,sep="_")
+
+# Remove Chromosome, Start, Stop and Length Columns 
+keepers=c(5,6,7,8,9,10,11,12)
+
+K4=K4[,keepers]
+
+# DESEQ2 -> Make Tables (from Coverage) into a matrix
+library(DESeq2)
+K4_peaks=as.matrix(K4)
+
+# Prepare Sample Information
+sample_group=factor(K4_Sample_Sheet$Condition)
+
+# Build New Data Frame with the above information
+K4_sample_data=data.frame(row.names=colnames(K4_peaks), sample_group)
+
+# Run DeSeq2 
+library(DESeq2)
+dds=DESeqDataSetFromMatrix(countData=K4_peaks, colData=K4_sample_data, design= ~sample_group)
+dds=DESeq(dds)
+
+# Extract Results from dds
+K4_norm_counts=as.data.frame(counts(dds,normalized=TRUE))
+
+# Round the counts so its easier to visualise
+K4_norm_counts=round(K4_norm_counts,2)
+
+# Save normalised counts table 
+K4_norm_counts_out=data.frame(row.names(K4_norm_counts))
+names(K4_norm_counts_out)= "id"
+K4_norm_counts_out=cbind(K4_norm_counts_out, K4_norm_counts)
+write.table(K4_norm_counts_out, file="C:/Users/kayle/Documents/R_Script_ChIP_2/K4_Norm_Counts.csv", row.names=FALSE, sep="\t", quote=FALSE)
+
+# Extract Differential Information from DeSeq2
+de_K4=results(dds,c("sample_group", "Disease", "Control"))
+de_table_K4=as.data.frame(de_K4)
+
+# Remove unwanted columns and add row names
+de_K4_out=as.data.frame(de_K4)
+de_K4_out=de_K4_out[order(de_K4_out$padj),]
+de_K4_out$id=row.names(de_K4_out)
+de_K4_out=de_K4_out[,c(7,2,5,6)]
+colnames(de_K4_out) = c("id", "log2fold", "p", "padj")
+write.table(de_K4_out, file="C:/Users/kayle/Documents/R_Script_ChIP_2/de_K4_control_vs_disease.csv", row.names=FALSE, sep="\t", quote=FALSE)
+
+			R Studio
+
+theme_SL2 <- function () {
+  theme_bw() %+replace%
+    theme(
+      panel.grid = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_rect(colour = "black", fill=NA, size=1),
+      plot.background = element_blank(),
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA),
+      plot.title = element_text(size=16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      title = element_text(size = 16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      axis.text.y = element_text(size = 14, margin = margin(r = 5),hjust=1,vjust=0.5),
+      axis.text.x = element_text(size = 14, margin = margin(t = 5),hjust=0.5,vjust=1),
+      axis.title.y = element_text(size = 16, margin = margin(r = 10),angle = 90,hjust=0.5,vjust=0.5),
+      axis.title.x = element_text(size = 16, margin = margin(t = 10),hjust=0.5,vjust=1),
+      legend.text=element_text(size=14),
+      legend.title=element_blank(),
+      legend.key.size=unit(2.5,"line"),
+      plot.margin=unit(c(0.4,0.4,0.4,0.4), "cm")
+    )
+}
+
+# Load files 
+K4healthy_v_disease=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/de_K4_control_vs_disease.csv", header=FALSE, sep="\t")
+K4peak_counts=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4.csv", header=FALSE, sep = "\t")
+K4peak_intensity=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4_Norm_Counts.csv", header=FALSE, sep = "\t")                          
+K4sample_sheet=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4_Sample_Sheet.txt", header=FALSE,  sep = "\t")
+
+# Reload files with column headers and row names 
+K4healthy_v_disease=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/de_K4_control_vs_disease.csv", header=TRUE, row.names=1, sep="\t")
+K4peak_intensity=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4_Norm_Counts.csv", header=TRUE, row.names=1, sep="\t")
+K4sample_sheet=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4_Sample_Sheet.txt", header=TRUE, row.names=1,  sep="\t")
+K4peak_counts=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4/DESeq2/K4_tables/K4.csv", header=TRUE, sep="\t")
+
+# Make a new column in Peak Intensity (same as EM table)for mean expression
+rowMeans(K4peak_intensity)
+K4peak_intensity$averages=rowMeans(K4peak_intensity)
+
+# Make scaled expression matrix (k4)
+K4_scaled=na.omit(data.frame(t(scale(t(K4peak_intensity)))))
+
+# Add columns for -log10p to the healthy v disease
+K4healthy_v_disease$mlog10p=-log(K4healthy_v_disease$p,4)
+
+# Add columns flagging signficance to the healthy v disease
+K4healthy_v_disease$sig=as.factor(K4healthy_v_disease$padj < 0.05 & abs(K4healthy_v_disease$log2fold) > 1.0)
+
+# Make a master table
+master_table=merge(K4healthy_v_disease, K4peak_intensity, by=0)
+row.names(master_table)=master_table$Row.names
+keepers=c(2,3,4,5,6,7,8,9,10,11,12,13,14,15,16)
+master_table=master_table[,keepers]
+
+#Make a list of significant genes using subset
+SigGenes=subset(master_table, padj <0.05 & abs(log2fold) > 1)
+
+# vector of significant gene names
+Sig=row.names(SigGenes)
+
+# Make expression matrices of significant genes only
+K4_sig=K4peak_intensity[Sig,]
+
+# Make table using scaled table
+K4_scaled_sig=K4_scaled[Sig,]
+
+keepers=c(1,2,3,4,5,6,7,8,9)
+K4_sig=K4_sig[,keepers]
+K4_scaled_sig=K4_scaled_sig[,keepers]
+
+## Save Sig Table For Use in Homer
+write.table(K4_sig,file="C:/Users/kayle/Documents/R_Script_ChIP_2/K4_sig.csv",sep="\t")
+
+#GGplots
+library(ggplot2)
+
+# Make a volcano plot healthy v disease
+### if need to make new table -> master_table_gut_temp=master_table[,c("log2fold.NG", "mlog10p.NG, significance.NG")]
+ggp=ggplot(master_table, aes(x=log2fold,y=mlog10p))
+ggp
+ggp=ggplot(master_table, aes(x=log2fold,y=mlog10p)) + geom_point()+labs(title="Volcano Plot", x="log2fold", y="-log10 p-value")
+ggp
+
+# change dots and add theme
+ggp=ggplot(master_table, aes(x=log2fold,y=mlog10p)) + geom_point(size=3)+labs(title="Volcano Plot for H3K4me3", x="log2fold", y="-log10 p-value") + theme_classic()
+ggp
+
+# colour dots by significance
+ggp=ggplot(na.omit(master_table), aes(x=log2fold,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot of H3K4me3", x="log2fold change", y="-log10 p-value")
+ggp
+
+#colour dots with different colours
+ggp=ggplot(na.omit(master_table), aes(x=log2fold,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot of H3K4me3", x="log2fold change", y="-log10 p-value") +scale_color_manual(values=c("red","black")) 
+ggp
+
+levels(master_table$sig)
+master_table$sig=factor(master_table$sig,levels=c(TRUE,FALSE))
+ggp
+ggp=ggplot(na.omit(master_table), aes(x=log2fold,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for H3K4me3", x="log2fold change", y="-log10 p-value") +scale_color_manual(values=c("blue","black"))
+ggp
+
+ggp=ggplot(na.omit(master_table), aes(x=log2fold,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for Loci Identified for H3K4me3", x="Log2Fold Change", y="-log10 p-value") +scale_color_manual(values=c("red","black"))+theme_classic() +theme_SL2()
+ggp
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/volcanoH3K4me3withtheme_no_gene_names.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+## Label dots with significant genes only
+ggp=ggplot(na.omit(master_table), aes(x=log2fold,y=mlog10p, fill=sig, colour=sig))+geom_point(size=3)+labs(title="Volcano Plot for Loci Identified for H3K4me3", x="Log2Fold Change", y="-log10 p-value") +scale_color_manual(values=c("red","black")) +geom_text(data=SigGenes,aes(label=row.names(SigGenes))) +theme_classic() +theme_SL2()
+ggp
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/volcanoH3K4me3 with loci.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+#Make a MA plot
+ggp=ggplot(na.omit(master_table), aes(x=averages, y=log2fold, colour=sig))+geom_point(size=1.5)+labs(title="MA Plot for Loci identified for H3K4me3", x="Log10 Mean Expression", y="Log2Fold Change") +theme_SL2() +scale_color_manual(values=c("red","black"))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/MAH3K4me3withtheme_correct.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+# PCA PLOT
+# Make seperate expression density plot for each sample
+
+
+#Load the sample sheet
+SS=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4_Sample_Sheet.txt", header=TRUE,sep="\t")
+keepers=c(1,4)
+SS=SS[,keepers]
+row.names(SS)=SS$SampleID
+condition=SS$Condition
+
+keepers=c(1,2,3,4,5,6,7,8,9)
+K4_sig=K4_sig[,keepers]
+
+# Make a Principal Component Analysis plot for PC1 vs PC2
+EM.nm = as.matrix(sapply(K4_sig, as.numeric))
+pca = prcomp(t(EM.nm))
+pca_coordinates=data.frame(pca$x)
+pca_coordinates <- pca_coordinates[-c(10), ]
+
+#Making the PCA plot
+ggp=ggplot(pca_coordinates,aes(x=PC1, y=PC2, colour=condition)) +geom_point(size=4)+labs(title="PCA plot for H3K4me3") +theme_SL2()
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/ControlVDisease-PCA1v2SAH3K4me3_withtheme.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+# Heatmaps and Clustering
+keepers=c(1,2,3,4,5,6,7,8,9)
+K4_scaled_sig=K4_scaled_sig[,keepers]
+hm.matrix=as.matrix(K4_scaled_sig)
+library(reshape2)
+hm.matrix=melt(hm.matrix)
+ggp=ggplot(hm.matrix, aes(x=Var2, y=Var1, fill=value))+geom_tile()
+ggp
+
+# Use scaled values
+## Already used scaled values
+
+# Fix the colours
+colours=c("blue", "yellow", "red")
+palette=colorRampPalette(colours)(100)
+ggp=ggplot(hm.matrix, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+# Cluster the expression matrix
+library(amap)
+
+
+## get the distances between the genes
+hm.matrix=as.matrix(K4_scaled_sig)
+y.dist=Dist(hm.matrix,method="spearman")
+
+# perform clustering using distances this builds the dendrogram
+y.cluster=hclust(y.dist,method="average")
+
+# extract the dendrogram
+y.dd=as.dendrogram(y.cluster)
+
+# untangle the dendrogram (re-order)
+y.dd.reorder=reorder(y.dd,0,FUN="average")
+
+# new gene order (as vector of row indexes)
+y.order=order.dendrogram(y.dd.reorder)
+
+# reorder heatmap matrix to have new, clustered gene order
+hm.matrix.clustered=hm.matrix[y.order,]
+
+# now proceed with melt and plot as before
+hm.matrix.clustered=melt(hm.matrix.clustered)
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+# now x distance
+x.dist=Dist(t(hm.matrix),method="spearman")
+
+# x clusters
+x.cluster=hclust(x.dist, method="average")
+
+# this pulls out the dendrogram
+x.dd = as.dendrogram(x.cluster)
+
+# this untangles the dendrogram
+x.dd.reorder=reorder(x.dd,0,FUN="average")
+
+# new gene order(as vector of row indexes)
+x.order=order.dendrogram(x.dd.reorder)
+
+#reorder heatmap matrix to have new clustered gene order
+hm.matrix.clustered=hm.matrix[y.order,]
+hm.matrix.clustered=melt(hm.matrix.clustered)
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile()
+ggp
+
+#tidy up plots
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("Significant loci") +xlab("Samples")
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/heatmapwithgenesH3K4me3.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+### To Remove Axis Labels Modify Theme 
+theme_SL2 <- function () {
+  theme_bw() %+replace%
+    theme(
+      panel.grid = element_blank(),
+      panel.background = element_blank(),
+      panel.border = element_rect(colour = "black", fill=NA, size=1),
+      plot.background = element_blank(),
+      legend.background = element_rect(fill="transparent", colour=NA),
+      legend.key = element_rect(fill="transparent", colour=NA),
+      plot.title = element_text(size=16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      title = element_text(size = 16, margin = margin(b = 5),hjust=0,vjust=0.5),
+      axis.title.y = element_text(size = 16, margin = margin(r = 10),angle = 90,hjust=0.5,vjust=0.5),
+      axis.title.x = element_text(size = 16, margin = margin(t = 10),hjust=0.5,vjust=1),
+      legend.text=element_text(size=14),
+      legend.title=element_blank(),
+      legend.key.size=unit(2.5,"line"),
+      plot.margin=unit(c(0.4,0.4,0.4,0.4), "cm")
+    )
+}
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("Significant loci") +xlab("Samples") +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.ticks=element_blank())
+ggp ### this one removes the y labels 
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("25 Significant Loci Identified Through Analysis") +xlab("Sample Condition") +labs(title="HeatMap for 25 Significant Loci identified Through Analysis for H3K4me3") +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))
+ggp ### this one keeps the y labels...
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/heatmapH3K4me3_withtheme1.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+### To remove ALL labels from heatmap (apart from x, y titles and title)
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +ylab("25 Significant Loci Identified Through Analysis") +xlab("Sample Condition") +labs(title="HeatMap for 25 Significant Loci identified Through Analysis for H3K4me3") +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.text.x=element_blank(), axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/heatmap_H3K4me3_titles_only.pdf", height=10, width=10)
+print(ggp)
+dev.off()
+
+### Remove ALL labels from the heatmap
+
+ggp=ggplot(hm.matrix.clustered, aes(x=Var2, y=Var1, fill=value)) + scale_fill_gradientn(colours=palette) + geom_tile() +theme(legend.title=element_blank(),legend.spacing.x=unit(0.25,'cm'), axis.text.y=element_blank(),axis.text.x=element_blank(), axis.title=element_blank(), axis.ticks=element_blank()) +scale_x_discrete(expand=c(0,0)) + scale_y_discrete(expand=c(0,0))
+ggp
+pdf("C:/Users/kayle/Documents/R_Script_ChIP_2/heatmap_H3K4me3_NO_labels.pdf", height=10, width=10)
+print (ggp)
+dev.off()
+
+		GoEnrich on H3K4me3 and H3K27me3 
+
+K4_Homer_DESeq2=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4_Homer_Data_DESeq2.txt", header=TRUE, sep="\t")
+K27_Homer_DESeq2=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K27_Homer_Data_DESeq2.txt", header=TRUE, sep="\t")
+K4_Homer_DiffBind=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K4_Homer_Data_DiffBind.txt", header=TRUE, sep="\t")
+K27_Homer_DiffBind=read.table("C:/Users/kayle/Documents/R_Script_ChIP_2/K27_Homer_Data_DiffBind.txt", header=TRUE, sep="\t")
+
+library(clusterProfiler)
+library(pathview)
+library(org.Hs.eg.db)
+
+# GOEnrich on K27 DeSeq2 Data
+
+keepers=c(15)
+signature_1=K27_Homer_DESeq2[,keepers]
+signature_entrez=bitr(signature_1, fromType="ENSEMBL", toType=c("ENTREZID"), OrgDb=org.Hs.eg.db)
+go_enrich=enrichGO(gene=signature_entrez$ENTREZID,OrgDb=org.Hs.eg.db,readable=T,ont="BP",pvalueCutoff=0.10,qvalueCutoff=0.10)
+barplot(go_enrich,showCategory=10)
+dotplot(go_enrich, showCategory=10)
+emapplot(go_enrich)
+goplot(go_enrich,showCategory=10)
+ggp = cnetplot(go_enrich,categorySize="pvalue", foldChange=signature_1)
+ggp
+
+
+# GoEnrich on K4 DESeq2 Data
+
+signature_3=K4_Homer_DESeq2[,keepers]
+signature_entrez=bitr(signature_3, fromType="ENSEMBL", toType=c("ENTREZID"), OrgDb=org.Hs.eg.db)
+go_enrich=enrichGO(gene=signature_entrez$ENTREZID,OrgDb=org.Hs.eg.db,readable=T,ont="BP",pvalueCutoff=0.10,qvalueCutoff=0.10)
+barplot(go_enrich,showCategory=10)
+dotplot(go_enrich, showCategory=10)
+emapplot(go_enrich)
+goplot(go_enrich,showCategory=10)
+ggp = cnetplot(go_enrich,categorySize="pvalue", foldChange=signature_3)
+ggp
+
+
